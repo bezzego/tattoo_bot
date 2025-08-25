@@ -136,5 +136,4 @@ venv.bak/
 .idea/
 
 # Project specific
-tattoo_bot/
 *.md
