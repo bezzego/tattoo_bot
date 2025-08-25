@@ -92,17 +92,21 @@ async def handle_reference_photo(message: Message, state: FSMContext):
             file_id = message.photo[-1].file_id
             refs.append(file_id)
             await state.update_data(references=refs)
-        # Acknowledge receipt
-        if len(refs) < 3:
+        # Acknowledge selectively: only after 1st and after 3rd photo
+        if len(refs) == 1:
             await message.answer(
-                "Фото получено. Вы можете отправить ещё или нажмите 'Готово', если завершили."
+                "Фото получено. Вы можете отправить ещё или нажмите 'Готово', если завершили.",
+                reply_markup=inline_kb.done_refs_keyboard(),
             )
-        else:
-            # Reached 3 photos
-            await message.answer("Получено 3 фото. Нажмите 'Готово', чтобы продолжить.")
+        elif len(refs) == 3 and message.media_group_id is None:
+            await message.answer(
+                "Получено 3 фото. Нажмите 'Готово', чтобы продолжить.",
+                reply_markup=inline_kb.done_refs_keyboard(),
+            )
     else:
         await message.answer(
-            "Вы уже отправили максимум 3 фото. Нажмите 'Готово' для продолжения."
+            "Вы уже отправили максимум 3 фото. Нажмите 'Готово' для продолжения.",
+            reply_markup=inline_kb.done_refs_keyboard(),
         )
 
 
@@ -153,13 +157,25 @@ async def go_to_confirmation(message: Message, state: FSMContext):
     phone = data.get("phone")
     phone_text = phone if phone else "не указан"
     refs = data.get("references", [])
-    refs_text = f"{len(refs)} фото" if refs else "не приложены"
-    # Create confirmation text
+
+    # Russian labels
+    zone_ru = texts.ZONES_RU.get(zone, zone or "—")
+    idea_ru = texts.IDEA_TYPES_RU.get(idea, idea or "—")
+    size_ru = texts.SIZES_RU.get(size, size or "—")
+    work_type_ru = texts.WORK_TYPES_RU.get(work_type, work_type or "—")
+
+    # References text: list placeholders [фото 1], [фото 2] ... или тире
+    if refs:
+        refs_text = ", ".join([f"[фото {i}]" for i, _ in enumerate(refs, start=1)])
+    else:
+        refs_text = "—"
+
+    # Create confirmation text with RU placeholders
     confirm_text = texts.CONFIRM_TEMPLATE.format(
-        zone=zone,
-        idea=idea,
-        size=size,
-        work_type=work_type,
+        zone_ru=zone_ru,
+        idea_ru=idea_ru,
+        size_ru=size_ru,
+        work_type_ru=work_type_ru,
         phone=phone_text,
         refs=refs_text,
     )

@@ -4,6 +4,49 @@ from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from app import config
 
+# RU labels for dropdown/enum values
+ZONES_RU = {
+    "back": "спина",
+    "chest": "грудь",
+    "ribs": "рёбра",
+    "stomach": "живот",
+    "shoulder": "плечо",
+    "arm": "рука",
+    "forearm": "предплечье",
+    "wrist": "запястье",
+    "hand": "кисть",
+    "neck": "шея",
+    "thigh": "бедро",
+    "leg": "нога",
+    "ankle": "щиколотка",
+    "foot": "стопа",
+    "ear": "ухо",
+    "face": "лицо",
+}
+
+SIZES_RU = {
+    "small": "маленький",
+    "medium": "средний",
+    "large": "большой",
+    "xl": "очень большой",
+}
+
+WORK_TYPES_RU = {
+    "new": "новая татуировка",
+    "coverup": "перекрытие",
+    "fix": "коррекция",
+    "laser": "удаление",
+    "piercing": "пирсинг",
+}
+
+IDEA_TYPES_RU = {
+    "image": "картинка/иллюстрация",
+    "text": "текст",
+    "portrait": "портрет",
+    "lettering": "леттеринг",
+    "minimal": "минимализм",
+}
+
 
 async def notify_master(bot: Bot, lead, client):
     """Send a new lead notification to the master (admin)."""
@@ -26,14 +69,18 @@ async def notify_master(bot: Bot, lead, client):
             f"Выбранный эскиз: {design_info}\n"
         )
     else:
+        ru_zone = ZONES_RU.get(getattr(lead, "zone", None), lead.zone)
+        ru_size = SIZES_RU.get(getattr(lead, "size", None), lead.size)
+        ru_work = WORK_TYPES_RU.get(getattr(lead, "work_type", None), lead.work_type)
+        ru_idea = IDEA_TYPES_RU.get(getattr(lead, "idea", None), lead.idea)
         text = (
             "Новая заявка 🎯\n"
             f"Клиент: {name_or_id} (id: {client.tg_user_id})\n"
             f"Телефон: {phone}\n\n"
-            f"Зона: {lead.zone}\n"
-            f"Идея: {lead.idea}\n"
-            f"Размер: {lead.size}\n"
-            f"Тип работы: {lead.work_type}\n"
+            f"Зона: {ru_zone}\n"
+            f"Идея: {ru_idea}\n"
+            f"Размер: {ru_size}\n"
+            f"Тип работы: {ru_work}\n"
         )
         # Include references indicator if present
         if lead.references_json:
