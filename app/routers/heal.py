@@ -1,112 +1,167 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 from aiogram.types import FSInputFile
 from aiogram.fsm.context import FSMContext
-
-from app import texts, config
+from aiogram.exceptions import TelegramBadRequest
+import logging
 import os
 
-# ======= Attachments for healing sections (replace with real file_ids) =======
+from app import texts, config
+
+# ======= Attachments for healing sections =======
 HEALING_PDFS = {
+    "classic": "BQACAgIAAxkBAAIDwGiwG8lWZsdbpCJyfnfyZzemzpoiAAKehAACq6GISRcVKol2dQWENgQ",
+    "film": "BQACAgIAAxkBAAIDvmiwG8V440VP1ysnnA_M9qFZHXc-AAKdhAACq6GISVbDrbjLAAGi2TYE",
     "piercing": "BQACAgIAAxkBAAIDumiwG6YELn1GJgThkyECs0fMFU-RAAKYhAACq6GISbZzAaUxdLE0NgQ",
     "removal": "BQACAgIAAxkBAAIDvGiwG7vHXmtl0NTkX8zWb-iNdsj-AAKbhAACq6GISehnj7-EDnkvNgQ",
-    "film": "BQACAgIAAxkBAAIDvmiwG8V440VP1ysnnA_M9qFZHXc-AAKdhAACq6GISVbDrbjLAAGi2TYE",
-    "classic": "BQACAgIAAxkBAAIDwGiwG8lWZsdbpCJyfnfyZzemzpoiAAKehAACq6GISRcVKol2dQWENgQ",
 }
+
 HEALING_PHOTOS = {
-    "classic": [
-        "AgACAgIAAxkBAAPNaKxdDvrghkXjjZRL6UCXDAuyW54AAlL7MRvyMWBJeYDWq1AuUYkBAAMCAAN5AAM2BA",
-    ],
-    "film": [
-        "AgACAgIAAxkBAAIDpGiwGAuhDnkAAcU-Si3GQ14K4znq3wACGvUxG6uhiElj2DoRY8ugswEAAwIAA3kAAzYE",
-    ],
-    "piercing": [
-        "AgACAgIAAxkBAAIDpmiwGFBiuBs80KndAyI1qdVJyHqJAAIe9TEbq6GIScQIK9zXh_00AQADAgADeQADNgQ",
-    ],
-    "removal": [
-        "AgACAgIAAxkBAAPKaKxdDqoCw_RK8GFw661LEaMKbWYAAk_7MRvyMWBJqdLW6-d77fMBAAMCAAN5AAM2BA",
-    ],
+    "classic": "AgACAgIAAxkBAAPNaKxdDvrghkXjjZRL6UCXDAuyW54AAlL7MRvyMWBJeYDWq1AuUYkBAAMCAAN5AAM2BA",
+    "film": "AgACAgIAAxkBAAIDpGiwGAuhDnkAAcU-Si3GQ14K4znq3wACGvUxG6uhiElj2DoRY8ugswEAAwIAA3kAAzYE",
+    "piercing": "AgACAgIAAxkBAAIDpmiwGFBiuBs80KndAyI1qdVJyHqJAAIe9TEbq6GIScQIK9zXh_00AQADAgADeQADNgQ",
+    "removal": "AgACAgIAAxkBAAPKaKxdDqoCw_RK8GFw661LEaMKbWYAAk_7MRvyMWBJqdLW6-d77fMBAAMCAAN5AAM2BA",
+}
+
+HEALING_TITLES = {
+    "classic": "Классическое заживление",
+    "film": "Заживление под пленкой",
+    "piercing": "Заживление пирсинга",
+    "removal": "Уход после удаления",
+}
+
+HEALING_TEXTS = {
+    "classic": texts.HEALING_CLASSIC,
+    "film": texts.HEALING_FILM,
+    "piercing": texts.HEALING_PIERCING,
+    "removal": texts.HEALING_REMOVAL,
 }
 # ============================================================================
 
 router = Router()
+logger = logging.getLogger(__name__)
+
+
+def get_healing_keyboard(current_topic: str = None) -> InlineKeyboardMarkup:
+    """Создает клавиатуру с вариантами заживления"""
+    buttons = []
+    topics = ["classic", "film", "piercing", "removal"]
+
+    # Создаем кнопки для всех тем, кроме текущей
+    for topic in topics:
+        if topic != current_topic:
+            button_text = {
+                "classic": "✨ Классическое",
+                "film": "🎞 Пленка",
+                "piercing": "💎 Пирсинг",
+                "removal": "❌ Удаление",
+            }.get(topic, topic)
+
+            buttons.append(
+                InlineKeyboardButton(text=button_text, callback_data=f"heal:{topic}")
+            )
+
+    # Добавляем кнопку связи с мастером
+    buttons.append(
+        InlineKeyboardButton(
+            text="✉️ Написать мастеру", url=f"tg://user?id={config.MASTER_ID}"
+        )
+    )
+
+    # Разбиваем на ряды по 2 кнопки
+    keyboard = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 @router.message(F.text == texts.MENU_HEALING)
 async def show_healing_menu(message: Message, state: FSMContext):
+    """Показывает меню выбора типа заживления"""
     await state.clear()
-    # Offer sub-options via inline keyboard
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-    kb = InlineKeyboardMarkup(
+    keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="Классическое", callback_data="heal:classic"),
-                InlineKeyboardButton(text="Пленка", callback_data="heal:film"),
+                InlineKeyboardButton(
+                    text="✨ Классическое", callback_data="heal:classic"
+                ),
+                InlineKeyboardButton(text="🎞 Пленка", callback_data="heal:film"),
             ],
             [
-                InlineKeyboardButton(text="Пирсинг", callback_data="heal:piercing"),
-                InlineKeyboardButton(text="Удаление", callback_data="heal:removal"),
+                InlineKeyboardButton(text="💎 Пирсинг", callback_data="heal:piercing"),
+                InlineKeyboardButton(text="❌ Удаление", callback_data="heal:removal"),
             ],
         ]
     )
-    await message.answer(texts.HEALING_PROMPT, reply_markup=kb)
+
+    await message.answer(
+        text="🩹 <b>Выберите тип заживления:</b>",
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(F.data.startswith("heal:"))
-async def send_healing_info(call: CallbackQuery):
+async def handle_healing_selection(call: CallbackQuery, state: FSMContext, bot):
+    """Обрабатывает выбор типа заживления"""
     await call.answer()
-    topic = call.data.split(":", 1)[1] if call.data else ""
-    text_to_send = ""
-    if topic == "classic":
-        text_to_send = texts.HEALING_CLASSIC
-    elif topic == "film":
-        text_to_send = texts.HEALING_FILM
-    elif topic == "piercing":
-        text_to_send = texts.HEALING_PIERCING
-    elif topic == "removal":
-        text_to_send = texts.HEALING_REMOVAL
 
-    # Try to attach PDF and photos for the selected topic (if file_ids are configured)
-    pdf_val = HEALING_PDFS.get(topic)
-    if pdf_val and isinstance(pdf_val, str) and pdf_val:
-        try:
-            if os.path.exists(pdf_val):
-                await call.message.answer_document(
-                    document=FSInputFile(pdf_val),
-                    caption=f"Памятка по заживлению ({topic})",
-                )
-            else:
-                # Fallback: treat as Telegram file_id
-                await call.message.answer_document(
-                    document=pdf_val,
-                    caption=f"Памятка по заживлению ({topic})",
-                )
-        except Exception:
-            pass
+    topic = call.data.split(":", 1)[1]
 
-    photos = HEALING_PHOTOS.get(topic, [])
-    for ph in photos or []:
-        if isinstance(ph, str) and ph and not ph.startswith("FILE_ID_"):
+    # Получаем данные для выбранного типа
+    photo_file_id = HEALING_PHOTOS.get(topic)
+    title = HEALING_TITLES.get(topic, "Уход")
+    text_content = HEALING_TEXTS.get(topic, "Информация временно недоступна.")
+
+    # Создаем клавиатуру с другими вариантами
+    keyboard = get_healing_keyboard(topic)
+
+    try:
+        # Отправляем фото с текстом и кнопками
+        if photo_file_id:
+            await call.message.answer_photo(
+                photo=photo_file_id,
+                caption=f"🩹 <b>{title}</b>\n\n{text_content}",
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
+        else:
+            # Если фото нет, отправляем только текст
+            await call.message.answer(
+                text=f"🩹 <b>{title}</b>\n\n{text_content}",
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
+
+        # Отправляем PDF файл отдельным сообщением
+        pdf_file_id = HEALING_PDFS.get(topic)
+        if pdf_file_id:
             try:
-                await call.message.answer_photo(photo=ph)
-            except Exception:
-                pass
+                await call.message.answer_document(
+                    document=pdf_file_id, caption=f"📄 Памятка по {title.lower()}"
+                )
+            except TelegramBadRequest:
+                logger.warning(f"Не удалось отправить PDF для {topic}")
 
-    if text_to_send:
-        # Include prompt to contact master
-        text_to_send = text_to_send + "\n\n" + texts.ASK_MASTER
-        # Inline button to write to master
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    except Exception as e:
+        logger.error(f"Ошибка при отправке информации о заживлении {topic}: {e}")
 
-        kb = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="✉️ Написать мастеру",
-                        url=f"tg://user?id={config.MASTER_ID}",
-                    )
-                ],
-            ]
+        # Fallback: отправляем без фото
+        await call.message.answer(
+            text=f"🩹 <b>{title}</b>\n\n{text_content}",
+            reply_markup=keyboard,
+            parse_mode="HTML",
         )
-        await call.message.answer(text_to_send, reply_markup=kb)
+
+        if pdf_file_id:
+            try:
+                await call.message.answer_document(
+                    document=pdf_file_id, caption=f"📄 Памятка по {title.lower()}"
+                )
+            except TelegramBadRequest:
+                pass
