@@ -22,6 +22,13 @@ async def handle_photo(message: Message):
     await message.answer(f"file_id: <code>{file_id}</code>")
 
 
+# Handler for document (PDF or any file)
+@dp.message(F.document)
+async def handle_document(message: Message):
+    file_id = message.document.file_id
+    await message.answer(f"file_id: <code>{file_id}</code>")
+
+
 async def main():
     print("Запусти бота, пришли ему фото, и он ответит file_id")
     await dp.start_polling(bot)
