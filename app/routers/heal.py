@@ -8,10 +8,10 @@ import os
 
 # ======= Attachments for healing sections (replace with real file_ids) =======
 HEALING_PDFS = {
-    "classic": "app/assets/healing/classic.pdf",
-    "film": "app/assets/healing/film.pdf",
-    "piercing": "app/assets/healing/piercing.pdf",
-    "removal": "app/assets/healing/removal.pdf",
+    "piercing": "BQACAgIAAxkBAAIDumiwG6YELn1GJgThkyECs0fMFU-RAAKYhAACq6GISbZzAaUxdLE0NgQ",
+    "removal": "BQACAgIAAxkBAAIDvGiwG7vHXmtl0NTkX8zWb-iNdsj-AAKbhAACq6GISehnj7-EDnkvNgQ",
+    "film": "BQACAgIAAxkBAAIDvmiwG8V440VP1ysnnA_M9qFZHXc-AAKdhAACq6GISVbDrbjLAAGi2TYE",
+    "classic": "BQACAgIAAxkBAAIDwGiwG8lWZsdbpCJyfnfyZzemzpoiAAKehAACq6GISRcVKol2dQWENgQ",
 }
 HEALING_PHOTOS = {
     "classic": [
